@@ -199,7 +199,7 @@ int main() {
   // starting lane
   int lane = 1;
   // reference velocity
-  double ref_vel = 49.5;
+  double ref_vel = 0.0;
 
   h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -267,8 +267,19 @@ int main() {
                   // take action: reduce speed
                   // ref_vel = 29.5;
                   too_close = true;
+                  if(lane > 0)
+                    lane = 0;
                 }
               }
+            }
+            // adding acceration here to make sure it won't exceed acceralation limit
+            if(too_close)
+            {
+              ref_vel -= 0.224;
+            }
+            else if(ref_vel < 49.5)
+            {
+              ref_vel += 0.224;
             }
 
             vector<double> ptsx;
