@@ -9,6 +9,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
+#include "costFunction.cpp"
 
 using namespace std;
 
@@ -160,6 +161,104 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+vector<string> getPossibleStates(string current_state)
+{
+  vector<string> possible_states = {};
+
+  if (current_state == "KL")
+  {
+    possible_states = {"KL", "LCL", "LCR"};
+  }
+  else if ((current_state == "LCL") or (current_state == "LCR"))
+  {
+    possible_states = {"KL"};
+  }
+
+  return possible_states;
+}
+
+double getDistanceToClosestCarInBackOnLane(int lane, double car_s, vector<vector<double>> sensor_fusion)
+{
+  double min_distance = -1000; // max distance
+  for (int i = 0; i < sensor_fusion.size(); i++)
+  {
+    //car is in my lane
+    float d = sensor_fusion[i][6]; //6 is because d is the sixth value
+    if (d < (2 + (4 * lane) + 2) && d > (2 + (4 * lane) - 2))
+    {
+      //Is in the same lane
+      double check_car_s = sensor_fusion[i][5];
+
+      double distance = check_car_s - car_s;
+      if (distance > min_distance and distance < 0)
+      {
+        min_distance = distance;
+      }
+
+    }
+  }
+  return abs(min_distance);
+}
+
+double getDistanceToClosestCarInFrontOnLane(int lane, double car_s, vector<vector<double>> sensor_fusion)
+{
+  double min_distance = 1000; // max distance
+  for (int i = 0; i < sensor_fusion.size(); i++)
+  {
+    //car is in my lane
+    float d = sensor_fusion[i][6]; //6 is because d is the sixth value
+    if (d < (2 + (4 * lane) + 2) && d > (2 + (4 * lane) - 2))
+    {
+      //Is in the same lane
+      double check_car_s = sensor_fusion[i][5];
+
+      double distance = check_car_s - car_s;
+      if (distance < min_distance and distance > 0)
+      {
+        min_distance = distance;
+      }
+
+    }
+  }
+}
+
+
+double calculateCostForState(string state, double car_s, int lane, double ref_v, vector<vector<double>> sensor_fusion)
+{
+  double cost = 0.0;
+  if (state == "KL")
+  {
+    //Cost for KL
+    double distance = getDistanceToClosestCarInFrontOnLane(lane, car_s, sensor_fusion);
+    cost += 1.0*getDistanceWithCarCost(distance);
+    cost += 1.0*stayOnTheRoadCost(lane);
+    if (ref_v > 30){
+      cost += 0.8*getSpeedCost(ref_v);
+    }
+  }
+  else if (state == "LCL")
+  {
+    //Cost for LCL
+    double distance = getDistanceToClosestCarInFrontOnLane(lane - 1, car_s, sensor_fusion);
+    double distance_behind = getDistanceToClosestCarInBackOnLane(lane - 1, car_s, sensor_fusion);
+    cost += 1.0*avoidCollisionCost(distance_behind);
+    cost += 1.0*getDistanceWithCarCost(distance);
+    cost += 0.2*changeLaneCost();
+    cost += 1.0*stayOnTheRoadCost(lane - 1);
+  }
+  else if (state == "LCR")
+  {
+    //Cost for LCR
+    double distance = getDistanceToClosestCarInFrontOnLane(lane + 1, car_s, sensor_fusion);
+    double distance_behind = getDistanceToClosestCarInBackOnLane(lane + 1, car_s, sensor_fusion);
+    cost += 1.0*avoidCollisionCost(distance_behind);
+    cost += 1.0*getDistanceWithCarCost(distance);
+    cost += 0.2*changeLaneCost();
+    cost += 1.0*stayOnTheRoadCost(lane + 1);
+  }
+  return cost;
+}
+
 int main() {
   uWS::Hub h;
 
@@ -201,7 +300,11 @@ int main() {
   // reference velocity
   double ref_vel = 0.0;
 
-  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  //Define states for FSM
+  vector<string> states = {"KL", "LCL", "LCR"};
+  string current_state = "KL";
+
+  h.onMessage([&current_state, &ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -277,10 +380,32 @@ int main() {
             {
               ref_vel -= 0.224;
             }
-            else if(ref_vel < 49.5)
+            else if(ref_vel < 49.0)
             {
               ref_vel += 0.224;
             }
+
+            vector<string> possible_states = getPossibleStates(current_state);
+            vector<pair<string,double>> state_costs;
+            double cost_min = 1000;
+            string best_state = "KL";
+            for (auto const& state: possible_states)
+            {
+              double cost = calculateCostForState(state, car_s, lane, ref_vel, sensor_fusion);
+              cout << "STATE: " << state << " has a cost of: " << cost << endl;
+              if (cost < cost_min){
+                cost_min = cost;
+                best_state = state;
+              }
+            }
+
+            // if (best_state == "LCL") {
+            //   lane -= 1;
+            // }
+            // else if (best_state == "LCR")
+            // {
+            //   lane += 1;
+            // }
 
             vector<double> ptsx;
             vector<double> ptsy;
