@@ -1,6 +1,15 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
-   
+### Model
+Most of the code was adopted from Project Walkthrough, Q&A video and [pabloelizalde](https://github.com/pabloelizalde/CarND-Path-Planning-Project). From the current sensor fusion and current car physical status. It is able to predict car's future position in 30, 60 and 90 meters ahead. Based on theres predicted waypoints, the future car trajectory can be calculated by spline function. The car's speed will be reduced if it is getting too close to the car ahead.
+
+### State Machine
+However, a proper cost function still cannot achieve a good result, instead, a simple lane changing algorithm is implemented as stated in the project walkthrough video.
+
+### Result
+The following image shown is the final result achieved without any incident.
+![](./result.png)
+
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
 
