@@ -72,7 +72,7 @@ double getSpeedCost(double velocity) {
 
 double avoidCollisionCost(double distance)
 {
-  if (distance > 30)
+  if (distance > 20)
   {
     return 0.0;
   }

@@ -231,30 +231,30 @@ double calculateCostForState(string state, double car_s, int lane, double ref_v,
     //Cost for KL
     double distance = getDistanceToClosestCarInFrontOnLane(lane, car_s, sensor_fusion);
     cost += 1.0*getDistanceWithCarCost(distance);
-    cost += 1.0*stayOnTheRoadCost(lane);
-    if (ref_v > 30){
-      cost += 0.8*getSpeedCost(ref_v);
-    }
+    cost += 0.5*stayOnTheRoadCost(lane);
+    //if (ref_v > 30){
+    cost += getSpeedCost(ref_v);
+    //}
   }
   else if (state == "LCL")
   {
     //Cost for LCL
     double distance = getDistanceToClosestCarInFrontOnLane(lane - 1, car_s, sensor_fusion);
     double distance_behind = getDistanceToClosestCarInBackOnLane(lane - 1, car_s, sensor_fusion);
-    cost += 1.0*avoidCollisionCost(distance_behind);
+    cost += 0.2*avoidCollisionCost(distance_behind);
     cost += 1.0*getDistanceWithCarCost(distance);
     cost += 0.2*changeLaneCost();
-    cost += 1.0*stayOnTheRoadCost(lane - 1);
+    cost += 0.5*stayOnTheRoadCost(lane - 1);
   }
   else if (state == "LCR")
   {
     //Cost for LCR
     double distance = getDistanceToClosestCarInFrontOnLane(lane + 1, car_s, sensor_fusion);
     double distance_behind = getDistanceToClosestCarInBackOnLane(lane + 1, car_s, sensor_fusion);
-    cost += 1.0*avoidCollisionCost(distance_behind);
+    cost += 0.2*avoidCollisionCost(distance_behind);
     cost += 1.0*getDistanceWithCarCost(distance);
     cost += 0.2*changeLaneCost();
-    cost += 1.0*stayOnTheRoadCost(lane + 1);
+    cost += 0.5*stayOnTheRoadCost(lane + 1);
   }
   return cost;
 }
@@ -370,8 +370,8 @@ int main() {
                   // take action: reduce speed
                   // ref_vel = 29.5;
                   too_close = true;
-                  if(lane > 0)
-                    lane = 0;
+                  // if(lane > 0)
+                  //   lane = 0;
                 }
               }
             }
@@ -399,13 +399,13 @@ int main() {
               }
             }
 
-            // if (best_state == "LCL") {
-            //   lane -= 1;
-            // }
-            // else if (best_state == "LCR")
-            // {
-            //   lane += 1;
-            // }
+            if (best_state == "LCL" && too_close) {
+              lane -= 1;
+            }
+            else if (best_state == "LCR" && too_close)
+            {
+              lane += 1;
+            }
 
             vector<double> ptsx;
             vector<double> ptsy;
